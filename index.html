@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, viewport-fit=cover, initial-scale=1.0"
+    />
+    <title>AR Modelos 3D</title>
+
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
+        font-family: Arial, sans-serif;
+        background: #000;
+      }
+
+      #menu {
+        position: fixed;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.55);
+        padding: 8px 14px;
+        border-radius: 10px;
+        z-index: 20;
+        color: white;
+        font-size: 14px;
+      }
+
+      #menu button {
+        background: #0b84ff;
+        color: white;
+        border: none;
+        padding: 6px 10px;
+        margin: 0 4px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      #msg {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 8px;
+        z-index: 20;
+        display: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="menu">
+      Escolher objeto:
+      <button onclick="setObject('skull')">Caveira</button>
+      <button onclick="setObject('car')">Carro</button>
+      <button onclick="setObject('phoenix')">Fênix</button>
+    </div>
+
+    <div id="msg"></div>
+
+    <script type="module">
+      // IMPORTS COM VERSÃO FIXA E ESTÁVEL (jsDelivr) — NÃO QUEBRA MAIS
+      import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js";
+      import { ARButton } from "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/webxr/ARButton.js";
+      import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/loaders/GLTFLoader.js";
+
+      let camera, scene, renderer;
+      let reticle,
+        hitTestSource = null,
+        hitRequested = false;
+      let activeObject = null;
+      let currentSelection = "skull";
+
+      const loader = new GLTFLoader();
+      const clock = new THREE.Clock();
+
+      init();
+      animate();
+
+      function showMsg(txt, t = 2000) {
+        const m = document.getElementById("msg");
+        m.textContent = txt;
+        m.style.display = "block";
+        clearTimeout(m._t);
+        m._t = setTimeout(() => (m.style.display = "none"), t);
+      }
+
+      window.setObject = (name) => {
+        currentSelection = name;
+        showMsg("Selecionado: " + name);
+
+        if (activeObject) {
+          scene.remove(activeObject);
+          activeObject = null;
+        }
+      };
+
+      function init() {
+        scene = new THREE.Scene();
+
+        camera = new THREE.PerspectiveCamera(
+          70,
+          window.innerWidth / window.innerHeight,
+          0.01,
+          20
+        );
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.xr.enabled = true;
+
+        document.body.appendChild(renderer.domElement);
+
+        // Luz padrão
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1));
+        const dl = new THREE.DirectionalLight(0xffffff, 1);
+        dl.position.set(1, 1, 1);
+        scene.add(dl);
+
+        // Reticle
+        const ring = new THREE.RingGeometry(0.1, 0.14, 32).rotateX(
+          -Math.PI / 2
+        );
+        reticle = new THREE.Mesh(
+          ring,
+          new THREE.MeshBasicMaterial({ color: 0x00ff66 })
+        );
+        reticle.matrixAutoUpdate = false;
+        reticle.visible = false;
+        scene.add(reticle);
+
+        // Controller
+        const controller = renderer.xr.getController(0);
+        controller.addEventListener("select", onSelect);
+        scene.add(controller);
+
+        // Botão AR
+        document.body.appendChild(
+          ARButton.createButton(renderer, {
+            requiredFeatures: ["hit-test"],
+          })
+        );
+
+        window.addEventListener("resize", () => {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+      }
+
+      function loadModel(url, scale = 1) {
+        return new Promise((res) => {
+          loader.load(url, (gltf) => {
+            const model = gltf.scene;
+            model.scale.setScalar(scale);
+            res(model);
+          });
+        });
+      }
+
+      async function createObject() {
+        if (currentSelection === "skull")
+          return await loadModel("./models/skull.glb", 1);
+
+        if (currentSelection === "car")
+          return await loadModel("./models/car.glb", 0.6);
+
+        if (currentSelection === "phoenix")
+          return await loadModel("./models/phoenix.glb", 0.7);
+      }
+
+      async function onSelect() {
+        if (!reticle.visible) return;
+
+        if (!activeObject) {
+          activeObject = await createObject();
+
+          activeObject.matrix.copy(reticle.matrix);
+          activeObject.matrix.decompose(
+            activeObject.position,
+            activeObject.quaternion,
+            activeObject.scale
+          );
+
+          scene.add(activeObject);
+          showMsg("Objeto colocado!");
+        } else {
+          activeObject.rotation.y += Math.PI / 4;
+          showMsg("Girando objeto...");
+        }
+      }
+
+      function animate() {
+        renderer.setAnimationLoop(render);
+      }
+
+      function render(t, frame) {
+        const dt = clock.getDelta();
+
+        // animação
+        if (activeObject) {
+          activeObject.rotation.y += dt * 0.3;
+        }
+
+        // hit test
+        const session = renderer.xr.getSession();
+        if (session && frame) {
+          if (!hitRequested) {
+            session.requestReferenceSpace("viewer").then((refSpace) => {
+              session
+                .requestHitTestSource({ space: refSpace })
+                .then((src) => (hitTestSource = src));
+            });
+            hitRequested = true;
+          }
+
+          if (hitTestSource) {
+            const refSpace = renderer.xr.getReferenceSpace();
+            const results = frame.getHitTestResults(hitTestSource);
+
+            if (results.length > 0) {
+              const pose = results[0].getPose(refSpace);
+              reticle.visible = true;
+              reticle.matrix.fromArray(pose.transform.matrix);
+            } else {
+              reticle.visible = false;
+            }
+          }
+        }
+
+        renderer.render(scene, camera);
+      }
+    </script>
+  </body>
+</html>
