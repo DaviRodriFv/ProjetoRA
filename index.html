@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, viewport-fit=cover, initial-scale=1.0"
     />
-    <title>AR — Modelos 3D</title>
+    <title>AR Modelos 3D — Android OK</title>
 
     <style>
       html,
@@ -16,6 +16,7 @@
         height: 100%;
         overflow: hidden;
         font-family: Arial, sans-serif;
+        background: #000;
       }
 
       #menu {
@@ -67,16 +68,17 @@
     <div id="msg"></div>
 
     <script type="module">
-      import * as THREE from "https://unpkg.com/three@0.150.0/build/three.module.js";
-      import { GLTFLoader } from "https://unpkg.com/three@0.150.0/examples/jsm/loaders/GLTFLoader.js";
-      import { ARButton } from "https://unpkg.com/three@0.150.0/examples/jsm/webxr/ARButton.js";
+      // IMPORTS COM VERSÃO FIXA E ESTÁVEL (jsDelivr) — NÃO QUEBRA MAIS
+      import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js";
+      import { ARButton } from "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/webxr/ARButton.js";
+      import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/loaders/GLTFLoader.js";
 
       let camera, scene, renderer;
       let reticle,
         hitTestSource = null,
         hitRequested = false;
-      let currentSelection = "skull";
       let activeObject = null;
+      let currentSelection = "skull";
 
       const loader = new GLTFLoader();
       const clock = new THREE.Clock();
@@ -84,16 +86,15 @@
       init();
       animate();
 
-      // Mensagens na tela
       function showMsg(txt, t = 2000) {
         const m = document.getElementById("msg");
         m.textContent = txt;
         m.style.display = "block";
-        setTimeout(() => (m.style.display = "none"), t);
+        clearTimeout(m._t);
+        m._t = setTimeout(() => (m.style.display = "none"), t);
       }
 
-      // Trocar modelo
-      window.setObject = function (name) {
+      window.setObject = (name) => {
         currentSelection = name;
         showMsg("Selecionado: " + name);
 
@@ -103,7 +104,6 @@
         }
       };
 
-      // Inicialização da cena
       function init() {
         scene = new THREE.Scene();
 
@@ -118,14 +118,16 @@
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.xr.enabled = true;
+
         document.body.appendChild(renderer.domElement);
 
+        // Luz padrão
         scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1));
         const dl = new THREE.DirectionalLight(0xffffff, 1);
         dl.position.set(1, 1, 1);
         scene.add(dl);
 
-        // reticle
+        // Reticle
         const ring = new THREE.RingGeometry(0.1, 0.14, 32).rotateX(
           -Math.PI / 2
         );
@@ -142,12 +144,13 @@
         controller.addEventListener("select", onSelect);
         scene.add(controller);
 
-        // AR Button
+        // Botão AR
         document.body.appendChild(
-          ARButton.createButton(renderer, { requiredFeatures: ["hit-test"] })
+          ARButton.createButton(renderer, {
+            requiredFeatures: ["hit-test"],
+          })
         );
 
-        // resize
         window.addEventListener("resize", () => {
           camera.aspect = window.innerWidth / window.innerHeight;
           camera.updateProjectionMatrix();
@@ -155,21 +158,19 @@
         });
       }
 
-      // Carrega GLB
       function loadModel(url, scale = 1) {
-        return new Promise((resolve) => {
+        return new Promise((res) => {
           loader.load(url, (gltf) => {
             const model = gltf.scene;
             model.scale.setScalar(scale);
-            resolve(model);
+            res(model);
           });
         });
       }
 
-      // Cria o objeto selecionado
       async function createObject() {
         if (currentSelection === "skull")
-          return await loadModel("./models/skull.glb", 1.0);
+          return await loadModel("./models/skull.glb", 1);
 
         if (currentSelection === "car")
           return await loadModel("./models/car.glb", 0.6);
@@ -178,12 +179,12 @@
           return await loadModel("./models/phoenix.glb", 0.7);
       }
 
-      // Colocar objeto na cena
       async function onSelect() {
         if (!reticle.visible) return;
 
-        if (activeObject == null) {
+        if (!activeObject) {
           activeObject = await createObject();
+
           activeObject.matrix.copy(reticle.matrix);
           activeObject.matrix.decompose(
             activeObject.position,
@@ -203,16 +204,15 @@
         renderer.setAnimationLoop(render);
       }
 
-      // Renderização + animações
       function render(t, frame) {
         const dt = clock.getDelta();
 
-        // animações extras
+        // animação
         if (activeObject) {
           activeObject.rotation.y += dt * 0.3;
         }
 
-        // hit test AR
+        // hit test
         const session = renderer.xr.getSession();
         if (session && frame) {
           if (!hitRequested) {
