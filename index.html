@@ -48,13 +48,11 @@
       arjs="sourceType: webcam; debugUIEnabled: false;"
     >
 
-      <!-- Marcador Hiro -->
       <a-marker id="marker" preset="hiro">
         <a-entity 
           id="model" 
-          position="0 0 0" 
-          scale="0.5 0.5 0.5"
-          animation-mixer
+          position="0 0 0"
+          animation-mixer="loop: repeat"
         ></a-entity>
       </a-marker>
 
@@ -72,6 +70,10 @@
       function loadModel() {
         const model = document.getElementById("model");
 
+        // limpa modelo anterior
+        model.removeAttribute("gltf-model");
+        model.setAttribute("animation-mixer", "loop: repeat");
+
         // CAVEIRA
         if (current === "skull") {
           model.setAttribute(
@@ -79,23 +81,24 @@
             "https://raw.githubusercontent.com/DaviRodriFv/ProjetoRA/main/models/skull.glb"
           );
           model.setAttribute("scale", "0.1 0.1 0.1");
+          model.setAttribute("rotation", "0 0 0");
         }
 
-        // TUBARÃO
+        // TUBARÃO (preto, mas ANIMA)
         if (current === "shark") {
           model.setAttribute(
             "gltf-model",
-            "https://raw.githubusercontent.com/DaviRodriFv/ProjetoRA/main/models/swimming_shark_4_different_animations.glb"
+            "https://files.catbox.moe/2l5358.glb"
           );
           model.setAttribute("scale", "0.3 0.3 0.3");
           model.setAttribute("rotation", "0 90 0");
         }
 
-        // PORCO
+        // PORCO (colorido e animado)
         if (current === "pig") {
           model.setAttribute(
             "gltf-model",
-            "https://raw.githubusercontent.com/DaviRodriFv/ProjetoRA/main/models/isle_of_pigs_pig_nightmare.glb"
+            "https://files.catbox.moe/g3v3tr.glb"
           );
           model.setAttribute("scale", "0.3 0.3 0.3");
           model.setAttribute("rotation", "0 0 0");
