@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Mini Museu AR</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.2/aframe/build/aframe-ar.min.js"></script>
+  </head>
+
+  <body style="margin: 0; overflow: hidden">
+    <button
+      id="btnTrocar"
+      style="
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 12px 20px;
+        font-size: 16px;
+        border-radius: 8px;
+        border: none;
+        background: #007bff;
+        color: white;
+        z-index: 10;
+      "
+    >
+      Trocar Objeto
+    </button>
+
+    <a-scene
+      embedded
+      arjs="sourceType: webcam; debugUIEnabled: false;"
+      vr-mode-ui="enabled: false"
+    >
+      <a-entity light="type: ambient; intensity: 0.7"></a-entity>
+      <a-entity
+        light="type: directional; intensity: 0.9"
+        position="1 1 0"
+      ></a-entity>
+
+      <a-marker preset="hiro">
+        <a-entity
+          id="objeto"
+          gltf-model="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models/2.0/Duck/glTF/Duck.gltf"
+          scale="0.3 0.3 0.3"
+          animation="property: rotation; to: 0 360 0; loop: true; dur: 3000"
+        ></a-entity>
+      </a-marker>
+
+      <a-entity camera></a-entity>
+    </a-scene>
+
+    <script>
+      const modelos = [
+        "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models/2.0/Duck/glTF/Duck.gltf",
+        "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models/2.0/RobotExpressive/glTF/RobotExpressive.gltf",
+        "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models/2.0/BoomBox/glTF/BoomBox.gltf",
+      ];
+
+      let index = 0;
+      const obj = document.getElementById("objeto");
+
+      document.getElementById("btnTrocar").onclick = () => {
+        index = (index + 1) % modelos.length;
+        obj.setAttribute("gltf-model", modelos[index]);
+      };
+    </script>
+  </body>
+</html>
