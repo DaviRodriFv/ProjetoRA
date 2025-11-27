@@ -7,7 +7,7 @@
     <!-- AFRAME -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
 
-    <!-- AR.js (versão estável com marker tracking) -->
+    <!-- AR.js marker-based -->
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar-nft.js"></script>
 
     <style>
@@ -38,11 +38,10 @@
   <body>
     <div id="menu">
       <button onclick="selectModel('skull')">Caveira</button>
-      <button onclick="selectModel('car')">Carro</button>
-      <button onclick="selectModel('phoenix')">Fênix</button>
+      <button onclick="selectModel('bixocorre')">Bixo Corre</button>
+      <button onclick="selectModel('guts')">Guts</button>
     </div>
 
-    <!-- Cena AR -->
     <a-scene
       vr-mode-ui="enabled: false"
       embedded
@@ -51,7 +50,12 @@
 
       <!-- Marcador Hiro -->
       <a-marker id="marker" preset="hiro">
-        <a-entity id="model" position="0 0 0" scale="0.5 0.5 0.5"></a-entity>
+        <a-entity 
+          id="model" 
+          position="0 0 0" 
+          scale="0.5 0.5 0.5"
+          animation-mixer
+        ></a-entity>
       </a-marker>
 
       <a-entity camera></a-entity>
@@ -68,19 +72,22 @@
       function loadModel() {
         const model = document.getElementById("model");
 
+        // CAVEIRA
         if (current === "skull") {
           model.setAttribute("gltf-model", "./models/skull.glb");
           model.setAttribute("scale", "0.7 0.7 0.7");
         }
 
-        if (current === "car") {
-          model.setAttribute("gltf-model", "./models/car.glb");
-          model.setAttribute("scale", "0.4 0.4 0.4");
+        // BIXO CORRE
+        if (current === "bixocorre") {
+          model.setAttribute("gltf-model", "./models/bixocorre.glb");
+          model.setAttribute("scale", "0.5 0.5 0.5");
         }
 
-        if (current === "phoenix") {
-          model.setAttribute("gltf-model", "./models/phoenix.glb");
-          model.setAttribute("scale", "0.5 0.5 0.5");
+        // GUTS
+        if (current === "guts") {
+          model.setAttribute("gltf-model", "./models/guts.glb");
+          model.setAttribute("scale", "1 1 1");
         }
       }
 
