@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, viewport-fit=cover, initial-scale=1.0"
     />
-    <title>AR — Objetos Interativos Animados</title>
+    <title>AR — Teste com Câmera</title>
     <style>
       html,
       body {
@@ -96,12 +96,15 @@
 
       function init() {
         scene = new THREE.Scene();
+
+        // CAMERA NORMAL (fallback)
         camera = new THREE.PerspectiveCamera(
           70,
           window.innerWidth / window.innerHeight,
           0.01,
           20
         );
+        camera.position.set(0, 1, 2);
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(window.devicePixelRatio);
@@ -109,11 +112,17 @@
         renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
 
+        // LUZ
         scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1));
         const dl = new THREE.DirectionalLight(0xffffff, 1);
         dl.position.set(1, 1, 1);
         scene.add(dl);
 
+        // GRID (só para referência visual no desktop)
+        const grid = new THREE.GridHelper(2, 10);
+        scene.add(grid);
+
+        // RETICLE
         const ringGeo = new THREE.RingGeometry(0.1, 0.14, 32).rotateX(
           -Math.PI / 2
         );
@@ -125,10 +134,12 @@
         reticle.visible = false;
         scene.add(reticle);
 
+        // CONTROLLER AR
         const controller = renderer.xr.getController(0);
         controller.addEventListener("select", onSelect);
         scene.add(controller);
 
+        // AR BUTTON
         document.body.appendChild(
           ARButton.createButton(renderer, { requiredFeatures: ["hit-test"] })
         );
@@ -153,31 +164,25 @@
       async function createObject() {
         if (currentSelection === "skull") {
           const obj = await loadModel("./models/skull.glb", 1);
-          obj.userData = { type: "skull" }; // Caveira
+          obj.userData = { type: "skull" };
           return obj;
         }
         if (currentSelection === "car") {
           const obj = await loadModel("./models/car.glb", 0.6);
-          obj.userData = { type: "car", floatDir: 1 }; // Carro flutuante
+          obj.userData = { type: "car", floatDir: 1 };
           return obj;
         }
         if (currentSelection === "phoenix") {
           const obj = await loadModel("./models/phoenix.glb", 0.7);
-          obj.userData = { type: "phoenix" }; // Phoenix animado
+          obj.userData = { type: "phoenix" };
           return obj;
         }
       }
 
       async function onSelect() {
-        if (!reticle.visible) return;
         if (activeObject === null) {
           activeObject = await createObject();
-          activeObject.matrix.copy(reticle.matrix);
-          activeObject.matrix.decompose(
-            activeObject.position,
-            activeObject.quaternion,
-            activeObject.scale
-          );
+          activeObject.position.set(0, 0, 0); // fallback para teste no desktop
           scene.add(activeObject);
           showMsg("Objeto colocado!");
         } else {
@@ -198,7 +203,6 @@
             activeObject.rotation.y += dt * 0.5;
             activeObject.position.y = 0.1 * Math.sin(clock.elapsedTime * 2);
           } else if (activeObject.userData.type === "car") {
-            activeObject.rotation.y += dt;
             activeObject.position.y += 0.01 * activeObject.userData.floatDir;
             if (activeObject.position.y > 0.15)
               activeObject.userData.floatDir = -1;
@@ -208,6 +212,7 @@
           }
         }
 
+        // HIT TEST AR
         const session = renderer.xr.getSession();
         if (session && frame) {
           if (!hitRequested) {
