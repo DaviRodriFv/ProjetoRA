@@ -6,16 +6,18 @@
       name="viewport"
       content="width=device-width, viewport-fit=cover, initial-scale=1.0"
     />
-    <title>AR — Teste com Câmera</title>
+    <title>AR — Modelos 3D</title>
+
     <style>
       html,
       body {
-        height: 100%;
         margin: 0;
         padding: 0;
+        height: 100%;
         overflow: hidden;
         font-family: Arial, sans-serif;
       }
+
       #menu {
         position: fixed;
         top: 10px;
@@ -28,6 +30,7 @@
         color: white;
         font-size: 14px;
       }
+
       #menu button {
         background: #0b84ff;
         color: white;
@@ -37,6 +40,7 @@
         border-radius: 6px;
         cursor: pointer;
       }
+
       #msg {
         position: fixed;
         bottom: 20px;
@@ -51,12 +55,13 @@
       }
     </style>
   </head>
+
   <body>
     <div id="menu">
       Escolher objeto:
       <button onclick="setObject('skull')">Caveira</button>
       <button onclick="setObject('car')">Carro</button>
-      <button onclick="setObject('phoenix')">Phoenix</button>
+      <button onclick="setObject('phoenix')">Fênix</button>
     </div>
 
     <div id="msg"></div>
@@ -72,39 +77,42 @@
         hitRequested = false;
       let currentSelection = "skull";
       let activeObject = null;
-      const clock = new THREE.Clock();
+
       const loader = new GLTFLoader();
+      const clock = new THREE.Clock();
 
       init();
       animate();
 
-      function showMsg(txt, time = 2000) {
+      // Mensagens na tela
+      function showMsg(txt, t = 2000) {
         const m = document.getElementById("msg");
         m.textContent = txt;
         m.style.display = "block";
-        setTimeout(() => (m.style.display = "none"), time);
+        setTimeout(() => (m.style.display = "none"), t);
       }
 
+      // Trocar modelo
       window.setObject = function (name) {
         currentSelection = name;
         showMsg("Selecionado: " + name);
+
         if (activeObject) {
           scene.remove(activeObject);
           activeObject = null;
         }
       };
 
+      // Inicialização da cena
       function init() {
         scene = new THREE.Scene();
 
-        // CAMERA NORMAL (fallback)
         camera = new THREE.PerspectiveCamera(
           70,
           window.innerWidth / window.innerHeight,
           0.01,
           20
         );
-        camera.position.set(0, 1, 2);
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(window.devicePixelRatio);
@@ -112,38 +120,34 @@
         renderer.xr.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        // LUZ
         scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1));
         const dl = new THREE.DirectionalLight(0xffffff, 1);
         dl.position.set(1, 1, 1);
         scene.add(dl);
 
-        // GRID (só para referência visual no desktop)
-        const grid = new THREE.GridHelper(2, 10);
-        scene.add(grid);
-
-        // RETICLE
-        const ringGeo = new THREE.RingGeometry(0.1, 0.14, 32).rotateX(
+        // reticle
+        const ring = new THREE.RingGeometry(0.1, 0.14, 32).rotateX(
           -Math.PI / 2
         );
         reticle = new THREE.Mesh(
-          ringGeo,
+          ring,
           new THREE.MeshBasicMaterial({ color: 0x00ff66 })
         );
         reticle.matrixAutoUpdate = false;
         reticle.visible = false;
         scene.add(reticle);
 
-        // CONTROLLER AR
+        // Controller
         const controller = renderer.xr.getController(0);
         controller.addEventListener("select", onSelect);
         scene.add(controller);
 
-        // AR BUTTON
+        // AR Button
         document.body.appendChild(
           ARButton.createButton(renderer, { requiredFeatures: ["hit-test"] })
         );
 
+        // resize
         window.addEventListener("resize", () => {
           camera.aspect = window.innerWidth / window.innerHeight;
           camera.updateProjectionMatrix();
@@ -151,6 +155,7 @@
         });
       }
 
+      // Carrega GLB
       function loadModel(url, scale = 1) {
         return new Promise((resolve) => {
           loader.load(url, (gltf) => {
@@ -161,28 +166,31 @@
         });
       }
 
+      // Cria o objeto selecionado
       async function createObject() {
-        if (currentSelection === "skull") {
-          const obj = await loadModel("./models/skull.glb", 1);
-          obj.userData = { type: "skull" };
-          return obj;
-        }
-        if (currentSelection === "car") {
-          const obj = await loadModel("./models/car.glb", 0.6);
-          obj.userData = { type: "car", floatDir: 1 };
-          return obj;
-        }
-        if (currentSelection === "phoenix") {
-          const obj = await loadModel("./models/phoenix.glb", 0.7);
-          obj.userData = { type: "phoenix" };
-          return obj;
-        }
+        if (currentSelection === "skull")
+          return await loadModel("./models/skull.glb", 1.0);
+
+        if (currentSelection === "car")
+          return await loadModel("./models/car.glb", 0.6);
+
+        if (currentSelection === "phoenix")
+          return await loadModel("./models/phoenix.glb", 0.7);
       }
 
+      // Colocar objeto na cena
       async function onSelect() {
-        if (activeObject === null) {
+        if (!reticle.visible) return;
+
+        if (activeObject == null) {
           activeObject = await createObject();
-          activeObject.position.set(0, 0, 0); // fallback para teste no desktop
+          activeObject.matrix.copy(reticle.matrix);
+          activeObject.matrix.decompose(
+            activeObject.position,
+            activeObject.quaternion,
+            activeObject.scale
+          );
+
           scene.add(activeObject);
           showMsg("Objeto colocado!");
         } else {
@@ -195,42 +203,38 @@
         renderer.setAnimationLoop(render);
       }
 
+      // Renderização + animações
       function render(t, frame) {
         const dt = clock.getDelta();
 
+        // animações extras
         if (activeObject) {
-          if (activeObject.userData.type === "phoenix") {
-            activeObject.rotation.y += dt * 0.5;
-            activeObject.position.y = 0.1 * Math.sin(clock.elapsedTime * 2);
-          } else if (activeObject.userData.type === "car") {
-            activeObject.position.y += 0.01 * activeObject.userData.floatDir;
-            if (activeObject.position.y > 0.15)
-              activeObject.userData.floatDir = -1;
-            if (activeObject.position.y < 0) activeObject.userData.floatDir = 1;
-          } else if (activeObject.userData.type === "skull") {
-            activeObject.rotation.y += dt * 0.1;
-          }
+          activeObject.rotation.y += dt * 0.3;
         }
 
-        // HIT TEST AR
+        // hit test AR
         const session = renderer.xr.getSession();
         if (session && frame) {
           if (!hitRequested) {
             session.requestReferenceSpace("viewer").then((refSpace) => {
               session
                 .requestHitTestSource({ space: refSpace })
-                .then((source) => (hitTestSource = source));
+                .then((src) => (hitTestSource = src));
             });
             hitRequested = true;
           }
+
           if (hitTestSource) {
             const refSpace = renderer.xr.getReferenceSpace();
             const results = frame.getHitTestResults(hitTestSource);
+
             if (results.length > 0) {
               const pose = results[0].getPose(refSpace);
               reticle.visible = true;
               reticle.matrix.fromArray(pose.transform.matrix);
-            } else reticle.visible = false;
+            } else {
+              reticle.visible = false;
+            }
           }
         }
 
