@@ -51,13 +51,12 @@
       }
     </style>
   </head>
-
   <body>
     <div id="menu">
       Escolher objeto:
-      <button onclick="setObject('tower')">Torre</button>
-      <button onclick="setObject('ufo')">OVNIs</button>
-      <button onclick="setObject('dragon')">Dragão</button>
+      <button onclick="setObject('skull')">Caveira</button>
+      <button onclick="setObject('car')">Carro</button>
+      <button onclick="setObject('phoenix')">Phoenix</button>
     </div>
 
     <div id="msg"></div>
@@ -71,10 +70,9 @@
       let reticle,
         hitTestSource = null,
         hitRequested = false;
-      let currentSelection = "tower";
+      let currentSelection = "skull";
       let activeObject = null;
       const clock = new THREE.Clock();
-
       const loader = new GLTFLoader();
 
       init();
@@ -87,11 +85,9 @@
         setTimeout(() => (m.style.display = "none"), time);
       }
 
-      // Trocar objeto e remover o antigo
-      window.setObject = async function (name) {
+      window.setObject = function (name) {
         currentSelection = name;
         showMsg("Selecionado: " + name);
-
         if (activeObject) {
           scene.remove(activeObject);
           activeObject = null;
@@ -100,13 +96,13 @@
 
       function init() {
         scene = new THREE.Scene();
-
         camera = new THREE.PerspectiveCamera(
           70,
           window.innerWidth / window.innerHeight,
           0.01,
           20
         );
+
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -155,35 +151,25 @@
       }
 
       async function createObject() {
-        if (currentSelection === "tower") {
-          const obj = await loadModel(
-            "https://models.readyplayer.me/Objects/Tower.glb",
-            1
-          );
-          obj.userData = { type: "tower" };
+        if (currentSelection === "skull") {
+          const obj = await loadModel("./models/skull.glb", 1);
+          obj.userData = { type: "skull" }; // Caveira
           return obj;
         }
-        if (currentSelection === "ufo") {
-          const obj = await loadModel(
-            "https://assets.mixkit.co/storage/models/107.glb",
-            0.6
-          );
-          obj.userData = { type: "ufo", floatDir: 1 };
+        if (currentSelection === "car") {
+          const obj = await loadModel("./models/car.glb", 0.6);
+          obj.userData = { type: "car", floatDir: 1 }; // Carro flutuante
           return obj;
         }
-        if (currentSelection === "dragon") {
-          const obj = await loadModel(
-            "https://threejs.org/examples/models/gltf/DragonAttenuation/glTF/DragonAttenuation.gltf",
-            0.7
-          );
-          obj.userData = { type: "dragon" };
+        if (currentSelection === "phoenix") {
+          const obj = await loadModel("./models/phoenix.glb", 0.7);
+          obj.userData = { type: "phoenix" }; // Phoenix animado
           return obj;
         }
       }
 
       async function onSelect() {
         if (!reticle.visible) return;
-
         if (activeObject === null) {
           activeObject = await createObject();
           activeObject.matrix.copy(reticle.matrix);
@@ -208,17 +194,16 @@
         const dt = clock.getDelta();
 
         if (activeObject) {
-          // Animações diferenciadas por tipo
-          if (activeObject.userData.type === "dragon") {
+          if (activeObject.userData.type === "phoenix") {
             activeObject.rotation.y += dt * 0.5;
             activeObject.position.y = 0.1 * Math.sin(clock.elapsedTime * 2);
-          } else if (activeObject.userData.type === "ufo") {
+          } else if (activeObject.userData.type === "car") {
             activeObject.rotation.y += dt;
             activeObject.position.y += 0.01 * activeObject.userData.floatDir;
             if (activeObject.position.y > 0.15)
               activeObject.userData.floatDir = -1;
             if (activeObject.position.y < 0) activeObject.userData.floatDir = 1;
-          } else if (activeObject.userData.type === "tower") {
+          } else if (activeObject.userData.type === "skull") {
             activeObject.rotation.y += dt * 0.1;
           }
         }
@@ -233,18 +218,14 @@
             });
             hitRequested = true;
           }
-
           if (hitTestSource) {
             const refSpace = renderer.xr.getReferenceSpace();
             const results = frame.getHitTestResults(hitTestSource);
-
             if (results.length > 0) {
               const pose = results[0].getPose(refSpace);
               reticle.visible = true;
               reticle.matrix.fromArray(pose.transform.matrix);
-            } else {
-              reticle.visible = false;
-            }
+            } else reticle.visible = false;
           }
         }
 
