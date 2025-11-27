@@ -151,20 +151,20 @@
       async function createObject() {
         if (currentSelection === "tower") {
           return await loadModel(
-            "https://models.babylonjs.com/CornellBox/glTF/CornellBox.gltf",
-            0.2
+            "https://models.readyplayer.me/Objects/Tower.glb",
+            1
           );
         }
         if (currentSelection === "ufo") {
           return await loadModel(
-            "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/FlyingHelmet/glTF/FlyingHelmet.gltf",
-            0.4
+            "https://assets.mixkit.co/storage/models/107.glb",
+            0.6
           );
         }
         if (currentSelection === "dragon") {
           return await loadModel(
-            "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DragonAttenuation/glTF/DragonAttenuation.gltf",
-            0.6
+            "https://threejs.org/examples/models/gltf/DragonAttenuation/glTF/DragonAttenuation.gltf",
+            0.7
           );
         }
       }
@@ -174,14 +174,12 @@
 
         if (activeObject === null) {
           activeObject = await createObject();
-
           activeObject.matrix.copy(reticle.matrix);
           activeObject.matrix.decompose(
             activeObject.position,
             activeObject.quaternion,
             activeObject.scale
           );
-
           scene.add(activeObject);
           showMsg("Objeto colocado!");
         } else {
