@@ -1,72 +1,382 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
   <head>
-    <title>Mini Museu AR</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ProjetoRA — AR Hit Test (Three.js)</title>
 
-    <!-- A-FRAME -->
-    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-
-    <!-- AR.JS - versão estável p/ iPhone -->
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-  </head>
-
-  <body style="margin: 0; overflow: hidden">
-    <button
-      id="btnTrocar"
-      style="
-        position: fixed;
-        bottom: 20px;
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family: Inter, Arial, sans-serif;
+        background: #111;
+        color: #fff;
+        -webkit-font-smoothing: antialiased;
+      }
+      #container {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+      }
+      .ui {
+        position: absolute;
+        left: 12px;
+        top: 12px;
+        z-index: 20;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      button {
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        backdrop-filter: blur(6px);
+      }
+      .hint {
+        position: absolute;
         left: 50%;
         transform: translateX(-50%);
-        padding: 12px 20px;
-        font-size: 16px;
-        border-radius: 8px;
-        border: none;
-        background: #007bff;
-        color: white;
-        z-index: 10;
-      "
-    >
-      Trocar Objeto
-    </button>
+        bottom: 26px;
+        z-index: 20;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 10px 14px;
+        border-radius: 10px;
+        font-size: 15px;
+      }
+      #message {
+        position: absolute;
+        right: 12px;
+        top: 12px;
+        z-index: 20;
+        max-width: 34%;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 12px;
+        border-radius: 10px;
+        font-size: 14px;
+      }
+      .small {
+        font-size: 13px;
+        opacity: 0.9;
+      }
+      #enter-ar-note {
+        display: none;
+        position: absolute;
+        inset: 0;
+        z-index: 50;
+        background: rgba(0, 0, 0, 0.85);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container"></div>
 
-    <a-scene
-      embedded
-      arjs="sourceType: webcam; debugUIEnabled: false"
-      vr-mode-ui="enabled: false"
-    >
-      <a-entity light="type: ambient; intensity: 0.7"></a-entity>
-      <a-entity
-        light="type: directional; intensity: 0.9"
-        position="1 1 0"
-      ></a-entity>
+    <div class="ui">
+      <button id="btn-cycle">Trocar Objeto</button>
+      <button id="btn-clear">Remover Todos</button>
+      <button id="btn-info">Instruções</button>
+    </div>
 
-      <a-marker preset="hiro">
-        <a-entity
-          id="objeto"
-          gltf-model="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models/2.0/Duck/glTF/Duck.gltf"
-          scale="0.3 0.3 0.3"
-          animation="property: rotation; to: 0 360 0; loop: true; dur: 3000"
-        ></a-entity>
-      </a-marker>
+    <div id="message" class="small">
+      <b>Objeto atual:</b> <span id="currentName">Duck</span><br />
+      Toque no chão para posicionar. Toque em objeto para girar.
+    </div>
 
-      <a-entity camera></a-entity>
-    </a-scene>
+    <div class="hint">
+      Toque em <b>Enter AR</b> (botão que aparece) para iniciar AR
+    </div>
 
-    <script>
-      const modelos = [
-        "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models/2.0/Duck/glTF/Duck.gltf",
-        "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models/2.0/RobotExpressive/glTF/RobotExpressive.gltf",
-        "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models/2.0/BoomBox/glTF/BoomBox.gltf",
+    <div id="enter-ar-note">
+      Seu navegador não parece suportar WebXR / Hit Test.<br />
+      Use Chrome no Android (versão recente) ou abra em um dispositivo com WebXR
+      habilitado.<br />
+      <small
+        >(Se quiser, posso gerar versão com marcador que funciona no
+        iPhone.)</small
+      >
+    </div>
+
+    <!-- Three.js via module imports -->
+    <script type="module">
+      import * as THREE from "https://unpkg.com/three@0.154.0/build/three.module.js";
+      import { ARButton } from "https://unpkg.com/three@0.154.0/examples/jsm/webxr/ARButton.js";
+      import { GLTFLoader } from "https://unpkg.com/three@0.154.0/examples/jsm/loaders/GLTFLoader.js";
+      import { DRACOLoader } from "https://unpkg.com/three@0.154.0/examples/jsm/loaders/DRACOLoader.js";
+
+      const container = document.getElementById("container");
+      const currentNameEl = document.getElementById("currentName");
+      const enterNote = document.getElementById("enter-ar-note");
+
+      // Models list (CDN) - você pode trocar por outros glTF públicos ou colocar locais
+      const models = [
+        {
+          name: "Duck",
+          url: "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Duck/glTF/Duck.gltf",
+          scale: 0.03,
+        },
+        {
+          name: "Robot",
+          url: "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/RobotExpressive/glTF/RobotExpressive.gltf",
+          scale: 0.5,
+        },
+        {
+          name: "BoomBox",
+          url: "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/BoomBox/glTF/BoomBox.gltf",
+          scale: 0.8,
+        },
+        {
+          name: "Avocado",
+          url: "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Avocado/glTF/Avocado.gltf",
+          scale: 2.0,
+        },
+        {
+          name: "Lantern",
+          url: "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Lantern/glTF/Lantern.gltf",
+          scale: 2.0,
+        },
       ];
+      let currentIndex = 0;
 
-      let index = 0;
-      const obj = document.getElementById("objeto");
+      // Three.js scene + renderer + camera
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera();
+      const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+      });
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+      container.appendChild(renderer.domElement);
 
-      document.getElementById("btnTrocar").onclick = () => {
-        index = (index + 1) % modelos.length;
-        obj.setAttribute("gltf-model", modelos[index]);
-      };
+      // light
+      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+      scene.add(light);
+      const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+      dir.position.set(0.5, 1, 0.2);
+      scene.add(dir);
+
+      // Reticle for hit testing
+      const reticle = new THREE.Mesh(
+        new THREE.RingGeometry(0.08, 0.12, 32).rotateX(-Math.PI / 2),
+        new THREE.MeshBasicMaterial({ color: 0x00ffcc })
+      );
+      reticle.matrixAutoUpdate = false;
+      reticle.visible = false;
+      scene.add(reticle);
+
+      // Loader with Draco support (in case)
+      const dracoLoader = new DRACOLoader();
+      dracoLoader.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
+      const loader = new GLTFLoader();
+      loader.setDRACOLoader(dracoLoader);
+
+      // Store placed objects
+      const placed = [];
+
+      // UI buttons
+      document.getElementById("btn-cycle").addEventListener("click", () => {
+        currentIndex = (currentIndex + 1) % models.length;
+        currentNameEl.textContent = models[currentIndex].name;
+        showTemporaryMessage(
+          `Objeto selecionado: ${models[currentIndex].name}`
+        );
+      });
+
+      document.getElementById("btn-clear").addEventListener("click", () => {
+        while (placed.length) {
+          const obj = placed.pop();
+          scene.remove(obj);
+        }
+        showTemporaryMessage("Removido todos os objetos");
+      });
+
+      document.getElementById("btn-info").addEventListener("click", () => {
+        alert(
+          "Instruções:\n\n1) Toque 'Enter AR' para iniciar.\n2) Aponte a câmera para o chão e mova devagar até o retículo (círculo) aparecer.\n3) Toque o retículo para posicionar o objeto.\n4) Toque no objeto para girar (interação simples).\n5) 'Trocar Objeto' muda qual modelo será posicionado."
+        );
+      });
+
+      function showTemporaryMessage(txt, t = 2000) {
+        const prev = document.getElementById("tmp-msg");
+        if (prev) prev.remove();
+        const el = document.createElement("div");
+        el.id = "tmp-msg";
+        el.style.position = "absolute";
+        el.style.left = "50%";
+        el.style.transform = "translateX(-50%)";
+        el.style.top = "60px";
+        el.style.padding = "8px 12px";
+        el.style.background = "rgba(0,0,0,0.6)";
+        el.style.borderRadius = "8px";
+        el.style.zIndex = 30;
+        el.style.color = "#fff";
+        el.textContent = txt;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), t);
+      }
+
+      // AR button and session
+      let xrRefSpace = null;
+      let xrHitTestSource = null;
+
+      function initAR() {
+        document.body.appendChild(
+          ARButton.createButton(renderer, { requiredFeatures: ["hit-test"] })
+        );
+        renderer.xr.addEventListener("sessionstart", async () => {
+          const session = renderer.xr.getSession();
+          xrRefSpace = await session.requestReferenceSpace("viewer");
+          xrHitTestSource = await session.requestHitTestSource({
+            space: xrRefSpace,
+          });
+          // set the local reference space for rendering
+          renderer.xr.setReferenceSpaceType("local");
+        });
+
+        renderer.xr.addEventListener("sessionend", () => {
+          xrHitTestSource = null;
+          reticle.visible = false;
+        });
+
+        // handle click/touch to place object
+        renderer.domElement.addEventListener("click", (ev) => {
+          if (!reticle.visible) return;
+          placeModelAtReticle();
+        });
+
+        // simple raycast for object interaction (tap to rotate)
+        renderer.domElement.addEventListener("pointerdown", (ev) => {
+          // map pointer to normalized device coords and raycast from camera
+          // keep small and cheap: skip for AR mode to avoid complexity
+        });
+      }
+
+      // Placement function
+      function placeModelAtReticle() {
+        const pos = new THREE.Vector3();
+        const quat = new THREE.Quaternion();
+        reticle.matrix.decompose(pos, quat, new THREE.Vector3());
+        const modelInfo = models[currentIndex];
+
+        loader.load(
+          modelInfo.url,
+          (gltf) => {
+            const root = gltf.scene || gltf.scenes[0];
+            root.traverse((c) => {
+              if (c.isMesh) {
+                c.castShadow = true;
+                c.receiveShadow = true;
+              }
+            });
+            root.position.copy(pos);
+            root.quaternion.copy(quat);
+            root.scale.setScalar(modelInfo.scale || 1);
+            // allow tap to rotate: simple event
+            root.userData = { rotating: false };
+            // add simple on-click using raycaster on tap (works in AR)
+            root.traverse((child) => {
+              child.userData.parentRoot = root;
+            });
+
+            scene.add(root);
+            placed.push(root);
+
+            showTemporaryMessage(`Coloque o "${modelInfo.name}"`, 2500);
+          },
+          undefined,
+          (err) => {
+            console.error("Erro load model", err);
+            showTemporaryMessage("Erro carregando modelo. Verifique conexão.");
+          }
+        );
+      }
+
+      // Render loop & hit-test updating
+      renderer.setAnimationLoop((timestamp, frame) => {
+        if (frame && xrHitTestSource) {
+          const referenceSpace = renderer.xr.getReferenceSpace();
+          const hitTestResults = frame.getHitTestResults(xrHitTestSource);
+          if (hitTestResults.length > 0) {
+            const hit = hitTestResults[0];
+            const pose = hit.getPose(referenceSpace);
+            reticle.visible = true;
+            reticle.matrix.fromArray(pose.transform.matrix);
+          } else {
+            reticle.visible = false;
+          }
+        }
+        renderer.render(scene, camera);
+      });
+
+      // Resize
+      window.addEventListener("resize", () => {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      // Init: check WebXR support
+      if (navigator.xr) {
+        navigator.xr
+          .isSessionSupported("immersive-ar")
+          .then((supported) => {
+            if (supported) {
+              initAR();
+            } else {
+              // WebXR not supported
+              enterNote.style.display = "flex";
+            }
+          })
+          .catch((err) => {
+            console.warn("Error checking XR support", err);
+            enterNote.style.display = "flex";
+          });
+      } else {
+        enterNote.style.display = "flex";
+      }
+
+      // Extra: allow rotating placed objects on tap (simple implementation)
+      // We'll implement pointer events with a raycaster to detect taps on placed meshes
+      const raycaster = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+      renderer.domElement.addEventListener("touchstart", (ev) => {
+        if (!renderer.xr.isPresenting) return;
+        if (ev.touches.length !== 1) return;
+        const touch = ev.touches[0];
+        pointer.x = (touch.clientX / window.innerWidth) * 2 - 1;
+        pointer.y = -(touch.clientY / window.innerHeight) * 2 + 1;
+        raycaster.setFromCamera(pointer, camera);
+        const intersects = raycaster.intersectObjects(scene.children, true);
+        if (intersects.length > 0) {
+          const root = intersects[0].object.userData.parentRoot;
+          if (root) {
+            // animate simple rotation
+            const target = root;
+            // rotate 90 degrees on Y
+            const animTime = 500;
+            const start = performance.now();
+            const startRot = target.rotation.y;
+            const endRot = startRot + Math.PI / 2;
+            function animateRot(now) {
+              const t = Math.min((now - start) / animTime, 1);
+              target.rotation.y = startRot + (endRot - startRot) * t;
+              if (t < 1) requestAnimationFrame(animateRot);
+            }
+            requestAnimationFrame(animateRot);
+          }
+        }
+      });
     </script>
   </body>
 </html>
