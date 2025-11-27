@@ -38,8 +38,8 @@
   <body>
     <div id="menu">
       <button onclick="selectModel('skull')">Caveira</button>
-      <button onclick="selectModel('bixocorre')">Bixo Corre</button>
-      <button onclick="selectModel('guts')">Guts</button>
+      <button onclick="selectModel('shark')">Tubarão</button>
+      <button onclick="selectModel('pig')">Porco</button>
     </div>
 
     <a-scene
@@ -74,20 +74,31 @@
 
         // CAVEIRA
         if (current === "skull") {
-          model.setAttribute("gltf-model", "https://raw.githubusercontent.com/DaviRodriFv/ProjetoRA/main/models/skull.glb");
-          model.setAttribute("scale", "0.5 0.5 0.5");
+          model.setAttribute(
+            "gltf-model",
+            "https://raw.githubusercontent.com/DaviRodriFv/ProjetoRA/main/models/skull.glb"
+          );
+          model.setAttribute("scale", "0.1 0.1 0.1");
         }
 
-        // BIXO CORRE
-        if (current === "bixocorre") {
-          model.setAttribute("gltf-model", "https://raw.githubusercontent.com/DaviRodriFv/ProjetoRA/main/models/bixocorre.glb");
+        // TUBARÃO
+        if (current === "shark") {
+          model.setAttribute(
+            "gltf-model",
+            "https://raw.githubusercontent.com/DaviRodriFv/ProjetoRA/main/models/swimming_shark_4_different_animations.glb"
+          );
           model.setAttribute("scale", "0.3 0.3 0.3");
+          model.setAttribute("rotation", "0 90 0");
         }
 
-        // GUTS
-        if (current === "guts") {
-          model.setAttribute("gltf-model", "https://raw.githubusercontent.com/DaviRodriFv/ProjetoRA/main/models/guts_-_berserk.glb");
-          model.setAttribute("scale", "0.4 0.4 0.4");
+        // PORCO
+        if (current === "pig") {
+          model.setAttribute(
+            "gltf-model",
+            "https://raw.githubusercontent.com/DaviRodriFv/ProjetoRA/main/models/isle_of_pigs_pig_nightmare.glb"
+          );
+          model.setAttribute("scale", "0.3 0.3 0.3");
+          model.setAttribute("rotation", "0 0 0");
         }
       }
 
