@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, viewport-fit=cover, initial-scale=1.0"
     />
-    <title>Mundo — Hit Test (Three.js)</title>
+    <title>AR — Objetos Interativos</title>
     <style>
       html,
       body {
@@ -16,84 +16,80 @@
         overflow: hidden;
         font-family: Arial, sans-serif;
       }
-      #info {
+      #menu {
         position: fixed;
-        left: 10px;
         top: 10px;
-        background: rgba(0, 0, 0, 0.55);
-        color: #fff;
-        padding: 8px 12px;
-        border-radius: 8px;
-        z-index: 10;
-        max-width: calc(100% - 40px);
-      }
-      #msg {
-        position: fixed;
         left: 50%;
-        bottom: 18px;
         transform: translateX(-50%);
-        background: rgba(0, 0, 0, 0.65);
-        color: #fff;
-        padding: 10px 14px;
+        background: rgba(0, 0, 0, 0.55);
+        padding: 8px 14px;
         border-radius: 10px;
-        z-index: 10;
-        display: none;
+        z-index: 20;
+        color: white;
+        font-size: 14px;
       }
-      #enter-ar {
-        display: block;
-        margin-top: 8px;
-        padding: 8px 10px;
-        border-radius: 8px;
+      #menu button {
         background: #0b84ff;
         color: white;
         border: none;
+        padding: 6px 10px;
+        margin: 0 4px;
+        border-radius: 6px;
         cursor: pointer;
       }
-      canvas {
-        display: block;
+      #msg {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 8px;
+        z-index: 20;
+        display: none;
       }
     </style>
   </head>
+
   <body>
-    <div id="info">
-      <div><strong>Portão AR (Three.js — Hit test)</strong></div>
-      <div style="margin-top: 6px; font-size: 13px">
-        Aponte a câmera para o chão → mova o dispositivo até ver o retículo
-        (círculo). Toque na tela para colocar o portão. Depois toque no portão
-        para <em>abrir/fechar</em>.
-      </div>
-      <button id="enter-ar" style="display: none">Entrar em AR</button>
+    <div id="menu">
+      Escolher objeto:
+      <button onclick="setObject('cube')">Cubo</button>
+      <button onclick="setObject('planet')">Planeta</button>
     </div>
+
     <div id="msg"></div>
 
     <script type="module">
       import * as THREE from "https://unpkg.com/three@0.150.0/build/three.module.js";
       import { ARButton } from "https://unpkg.com/three@0.150.0/examples/jsm/webxr/ARButton.js";
 
-      let container, camera, scene, renderer;
+      let camera, scene, renderer;
       let reticle,
         hitTestSource = null,
-        hitTestSourceRequested = false;
-      let gate = null; // grupo do portão
+        hitRequested = false;
+      let currentSelection = "cube";
+      let activeObject = null; // objeto colocado
+
       const clock = new THREE.Clock();
 
       init();
       animate();
 
-      function showMessage(text, time = 2500) {
-        const el = document.getElementById("msg");
-        el.style.display = "block";
-        el.textContent = text;
-        if (time)
-          setTimeout(() => {
-            el.style.display = "none";
-          }, time);
+      function showMsg(txt, time = 2000) {
+        const m = document.getElementById("msg");
+        m.textContent = txt;
+        m.style.display = "block";
+        setTimeout(() => (m.style.display = "none"), time);
       }
 
-      function init() {
-        container = document.createElement("div");
-        document.body.appendChild(container);
+      window.setObject = function (name) {
+        currentSelection = name;
+        showMsg("Selecionado: " + name);
+      };
 
+      function init() {
         scene = new THREE.Scene();
 
         camera = new THREE.PerspectiveCamera(
@@ -103,238 +99,135 @@
           20
         );
 
-        // renderer
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.xr.enabled = true;
-        container.appendChild(renderer.domElement);
+        document.body.appendChild(renderer.domElement);
 
-        // lights
-        const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-        scene.add(light);
-        const d = new THREE.DirectionalLight(0xffffff, 0.6);
-        d.position.set(0.5, 1, 0.25).normalize();
-        scene.add(d);
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1));
+        const dl = new THREE.DirectionalLight(0xffffff, 0.7);
+        dl.position.set(1, 1, 1);
+        scene.add(dl);
 
-        // reticle (indica onde o hit test detectou superfície)
-        const ringGeo = new THREE.RingGeometry(0.12, 0.16, 32).rotateX(
+        // reticle
+        const ringGeo = new THREE.RingGeometry(0.1, 0.14, 32).rotateX(
           -Math.PI / 2
         );
-        const ringMat = new THREE.MeshBasicMaterial({ color: 0x00ff66 });
-        reticle = new THREE.Mesh(ringGeo, ringMat);
+        reticle = new THREE.Mesh(
+          ringGeo,
+          new THREE.MeshBasicMaterial({ color: 0x00ff66 })
+        );
         reticle.matrixAutoUpdate = false;
         reticle.visible = false;
         scene.add(reticle);
 
-        // build gate (but don't add to scene until placed)
-        gate = buildGate();
-        gate.visible = false;
-        scene.add(gate);
-
-        // controller for input (touch)
         const controller = renderer.xr.getController(0);
         controller.addEventListener("select", onSelect);
         scene.add(controller);
 
-        // AR button - create UI to enter AR
-        const arButton = ARButton.createButton(renderer, {
-          requiredFeatures: ["hit-test"],
+        document.body.appendChild(
+          ARButton.createButton(renderer, { requiredFeatures: ["hit-test"] })
+        );
+
+        window.addEventListener("resize", () => {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
         });
-        // hide default AR button (we will show our own simpler)
-        arButton.style.display = "none";
-        document.body.appendChild(arButton);
-
-        // show a custom button that triggers the same action
-        const enterBtn = document.getElementById("enter-ar");
-        enterBtn.style.display = "block";
-        enterBtn.onclick = () => {
-          // start session (this triggers permission prompts)
-          navigator.xr && navigator.xr.requestSession
-            ? renderer.xr.setSession(arButton.onclick && arButton.onclick())
-            : showMessage(
-                "Seu navegador não suporta WebXR. Use Chrome no Android."
-              );
-        };
-
-        window.addEventListener("resize", onWindowResize);
       }
 
-      function buildGate() {
-        const group = new THREE.Group();
+      // 📌 Objetos pré-prontos (super leves)
+      function makeCube() {
+        const geo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+        const mat = new THREE.MeshStandardMaterial({ color: 0x0077ff });
+        const cube = new THREE.Mesh(geo, mat);
+        cube.userData = { type: "cube", rot: 0 };
+        return cube;
+      }
 
-        // posts
-        const postGeo = new THREE.BoxGeometry(0.12, 1.2, 0.12);
-        const postMat = new THREE.MeshStandardMaterial({
-          color: 0x6b4f2b,
-          metalness: 0.1,
-          roughness: 0.8,
-        });
-        const leftPost = new THREE.Mesh(postGeo, postMat);
-        const rightPost = leftPost.clone();
-        leftPost.position.set(-0.85, 0.6, 0);
-        rightPost.position.set(0.85, 0.6, 0);
-        group.add(leftPost, rightPost);
-
-        // top beam
-        const beamGeo = new THREE.BoxGeometry(1.9, 0.12, 0.14);
-        const beam = new THREE.Mesh(beamGeo, postMat);
-        beam.position.set(0, 1.2 + 0.06, 0);
-        group.add(beam);
-
-        // two doors (swing)
-        const doorGeo = new THREE.BoxGeometry(0.85, 1.0, 0.06);
-        const doorMat = new THREE.MeshStandardMaterial({
-          color: 0x333333,
-          metalness: 0.6,
-          roughness: 0.4,
-        });
-
-        // left door pivot
-        const leftDoorPivot = new THREE.Group();
-        const leftDoor = new THREE.Mesh(doorGeo, doorMat);
-        leftDoor.position.set(-0.425, 0.5, 0);
-        leftDoorPivot.add(leftDoor);
-        leftDoorPivot.position.set(-0.85 + 0.02, 0, 0); // hinge near post
-        group.add(leftDoorPivot);
-
-        // right door pivot
-        const rightDoorPivot = new THREE.Group();
-        const rightDoor = new THREE.Mesh(doorGeo, doorMat);
-        rightDoor.position.set(0.425, 0.5, 0);
-        rightDoorPivot.add(rightDoor);
-        rightDoorPivot.position.set(0.85 - 0.02, 0, 0);
-        group.add(rightDoorPivot);
-
-        // store pivots for animation control
-        group.userData = {
-          leftPivot: leftDoorPivot,
-          rightPivot: rightDoorPivot,
-          openTarget: 0, // 0 = closed, 1 = open
-          openCurrent: 0, // interpolated value
-        };
-
-        // a tiny collision invisible box for tapping detection
-        const touchGeo = new THREE.BoxGeometry(2.0, 1.6, 0.6);
-        const touchMat = new THREE.MeshBasicMaterial({ visible: false });
-        const touchBox = new THREE.Mesh(touchGeo, touchMat);
-        touchBox.position.set(0, 0.8, 0);
-        group.add(touchBox);
-        group.userData.touchBox = touchBox;
-
-        return group;
+      function makePlanet() {
+        const geo = new THREE.SphereGeometry(0.3, 32, 32);
+        const tex = new THREE.TextureLoader().load(
+          "https://upload.wikimedia.org/wikipedia/commons/4/4a/Earth_%28texture%29.png"
+        );
+        const mat = new THREE.MeshStandardMaterial({ map: tex });
+        const sphere = new THREE.Mesh(geo, mat);
+        sphere.userData = { type: "planet" };
+        return sphere;
       }
 
       function onSelect() {
-        // if reticle visible and gate not placed -> place gate
-        if (reticle.visible && !gate.userData.placed) {
-          // apply reticle's matrix to gate
-          gate.visible = true;
-          gate.userData.placed = true;
-          // position
-          const matrix = new THREE.Matrix4();
-          matrix.copy(reticle.matrix);
-          gate.applyMatrix4(matrix);
-          // ensure gate upright
-          gate.rotation.x = 0;
-          gate.rotation.z = 0;
-          // small message
-          showMessage("Portão colocado! Toque no portão para abrir/fechar.");
-          return;
-        }
+        if (reticle.visible) {
+          if (activeObject === null) {
+            // criar objeto selecionado
+            activeObject =
+              currentSelection === "cube" ? makeCube() : makePlanet();
 
-        // else if gate placed -> check if touch hits the gate touchBox (raycast)
-        if (gate.userData.placed) {
-          // raycast from controller forward
-          const controller = renderer.xr.getController(0);
-          const tempMatrix = new THREE.Matrix4();
-          tempMatrix.identity().extractRotation(controller.matrixWorld);
-
-          const rayOrigin = new THREE.Vector3().setFromMatrixPosition(
-            controller.matrixWorld
-          );
-          const rayDirection = new THREE.Vector3(0, 0, -1)
-            .applyMatrix4(tempMatrix)
-            .sub(rayOrigin)
-            .normalize();
-          const raycaster = new THREE.Raycaster(rayOrigin, rayDirection, 0, 10);
-
-          const intersects = raycaster.intersectObject(
-            gate.userData.touchBox,
-            true
-          );
-          if (intersects.length > 0) {
-            // toggle open / close
-            gate.userData.openTarget = gate.userData.openTarget === 0 ? 1 : 0;
-            showMessage(
-              gate.userData.openTarget === 1 ? "Abrindo..." : "Fechando..."
+            activeObject.visible = true;
+            activeObject.matrix.copy(reticle.matrix);
+            activeObject.matrix.decompose(
+              activeObject.position,
+              activeObject.quaternion,
+              activeObject.scale
             );
+
+            scene.add(activeObject);
+            showMsg("Objeto colocado!");
+          } else {
+            // interação — toques no objeto
+            if (activeObject.userData.type === "cube") {
+              activeObject.userData.rot += Math.PI / 4;
+              showMsg("Cubo girando!");
+            } else if (activeObject.userData.type === "planet") {
+              showMsg("Planeta continua girando...");
+            }
           }
         }
       }
 
-      function onWindowResize() {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-      }
-
-      // animation loop
       function animate() {
         renderer.setAnimationLoop(render);
       }
 
-      function render(timestamp, frame) {
+      function render(t, frame) {
         const dt = clock.getDelta();
 
-        // handle hit test
-        if (frame) {
-          const referenceSpace = renderer.xr.getReferenceSpace();
-          const session = renderer.xr.getSession();
+        // animações
+        if (activeObject) {
+          if (activeObject.userData.type === "cube") {
+            // anima para o alvo
+            activeObject.rotation.y +=
+              (activeObject.userData.rot - activeObject.rotation.y) * dt * 5;
+          } else if (activeObject.userData.type === "planet") {
+            activeObject.rotation.y += dt * 0.6;
+          }
+        }
 
-          if (!hitTestSourceRequested) {
+        // hit test
+        const session = renderer.xr.getSession();
+        if (session && frame) {
+          if (!hitRequested) {
             session.requestReferenceSpace("viewer").then((refSpace) => {
               session
                 .requestHitTestSource({ space: refSpace })
-                .then((source) => {
-                  hitTestSource = source;
-                });
+                .then((source) => (hitTestSource = source));
             });
-            session.addEventListener("end", () => {
-              hitTestSourceRequested = false;
-              hitTestSource = null;
-              reticle.visible = false;
-            });
-            hitTestSourceRequested = true;
+            hitRequested = true;
           }
 
           if (hitTestSource) {
-            const hitTestResults = frame.getHitTestResults(hitTestSource);
-            if (hitTestResults.length > 0) {
-              const hit = hitTestResults[0];
-              const pose = hit.getPose(renderer.xr.getReferenceSpace());
+            const refSpace = renderer.xr.getReferenceSpace();
+            const results = frame.getHitTestResults(hitTestSource);
+
+            if (results.length > 0) {
+              const pose = results[0].getPose(refSpace);
               reticle.visible = true;
               reticle.matrix.fromArray(pose.transform.matrix);
             } else {
               reticle.visible = false;
             }
           }
-        }
-
-        // animate gate open/close (interpolate)
-        if (gate && gate.userData.placed) {
-          // smooth interpolation
-          const s = 6.0; // speed
-          gate.userData.openCurrent +=
-            (gate.userData.openTarget - gate.userData.openCurrent) *
-            Math.min(1, s * dt);
-          // map openCurrent (0..1) to door angles
-          const maxAngle = (Math.PI / 2) * 0.9; // ~90 degrees
-          gate.userData.leftPivot.rotation.y = -(
-            maxAngle * gate.userData.openCurrent
-          );
-          gate.userData.rightPivot.rotation.y =
-            maxAngle * gate.userData.openCurrent;
         }
 
         renderer.render(scene, camera);
