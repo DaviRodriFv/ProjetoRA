@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, viewport-fit=cover, initial-scale=1.0"
     />
-    <title>AR — Objetos Interativos</title>
+    <title>AR — Objetos Interativos Melhorados</title>
     <style>
       html,
       body {
@@ -55,24 +55,27 @@
   <body>
     <div id="menu">
       Escolher objeto:
-      <button onclick="setObject('cube')">Cubo</button>
-      <button onclick="setObject('planet')">Planeta</button>
+      <button onclick="setObject('tower')">Torre</button>
+      <button onclick="setObject('ufo')">OVNI</button>
+      <button onclick="setObject('dragon')">Dragão</button>
     </div>
 
     <div id="msg"></div>
 
     <script type="module">
       import * as THREE from "https://unpkg.com/three@0.150.0/build/three.module.js";
+      import { GLTFLoader } from "https://unpkg.com/three@0.150.0/examples/jsm/loaders/GLTFLoader.js";
       import { ARButton } from "https://unpkg.com/three@0.150.0/examples/jsm/webxr/ARButton.js";
 
       let camera, scene, renderer;
       let reticle,
         hitTestSource = null,
         hitRequested = false;
-      let currentSelection = "cube";
-      let activeObject = null; // objeto colocado
-
+      let currentSelection = "tower";
+      let activeObject = null;
       const clock = new THREE.Clock();
+
+      const loader = new GLTFLoader();
 
       init();
       animate();
@@ -98,7 +101,6 @@
           0.01,
           20
         );
-
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -106,11 +108,10 @@
         document.body.appendChild(renderer.domElement);
 
         scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1));
-        const dl = new THREE.DirectionalLight(0xffffff, 0.7);
+        const dl = new THREE.DirectionalLight(0xffffff, 1);
         dl.position.set(1, 1, 1);
         scene.add(dl);
 
-        // reticle
         const ringGeo = new THREE.RingGeometry(0.1, 0.14, 32).rotateX(
           -Math.PI / 2
         );
@@ -137,52 +138,55 @@
         });
       }
 
-      // 📌 Objetos pré-prontos (super leves)
-      function makeCube() {
-        const geo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-        const mat = new THREE.MeshStandardMaterial({ color: 0x0077ff });
-        const cube = new THREE.Mesh(geo, mat);
-        cube.userData = { type: "cube", rot: 0 };
-        return cube;
+      function loadModel(url, scale = 1) {
+        return new Promise((resolve) => {
+          loader.load(url, (gltf) => {
+            const model = gltf.scene;
+            model.scale.setScalar(scale);
+            resolve(model);
+          });
+        });
       }
 
-      function makePlanet() {
-        const geo = new THREE.SphereGeometry(0.3, 32, 32);
-        const tex = new THREE.TextureLoader().load(
-          "https://upload.wikimedia.org/wikipedia/commons/4/4a/Earth_%28texture%29.png"
-        );
-        const mat = new THREE.MeshStandardMaterial({ map: tex });
-        const sphere = new THREE.Mesh(geo, mat);
-        sphere.userData = { type: "planet" };
-        return sphere;
+      async function createObject() {
+        if (currentSelection === "tower") {
+          return await loadModel(
+            "https://models.babylonjs.com/CornellBox/glTF/CornellBox.gltf",
+            0.2
+          );
+        }
+        if (currentSelection === "ufo") {
+          return await loadModel(
+            "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/FlyingHelmet/glTF/FlyingHelmet.gltf",
+            0.4
+          );
+        }
+        if (currentSelection === "dragon") {
+          return await loadModel(
+            "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DragonAttenuation/glTF/DragonAttenuation.gltf",
+            0.6
+          );
+        }
       }
 
-      function onSelect() {
-        if (reticle.visible) {
-          if (activeObject === null) {
-            // criar objeto selecionado
-            activeObject =
-              currentSelection === "cube" ? makeCube() : makePlanet();
+      async function onSelect() {
+        if (!reticle.visible) return;
 
-            activeObject.visible = true;
-            activeObject.matrix.copy(reticle.matrix);
-            activeObject.matrix.decompose(
-              activeObject.position,
-              activeObject.quaternion,
-              activeObject.scale
-            );
+        if (activeObject === null) {
+          activeObject = await createObject();
 
-            scene.add(activeObject);
-            showMsg("Objeto colocado!");
-          } else {
-            // interação — toques no objeto
-            if (activeObject.userData.type === "cube") {
-              activeObject.userData.rot += Math.PI / 4;
-              showMsg("Cubo girando!");
-            } else if (activeObject.userData.type === "planet") {
-              showMsg("Planeta continua girando...");
-            }
-          }
+          activeObject.matrix.copy(reticle.matrix);
+          activeObject.matrix.decompose(
+            activeObject.position,
+            activeObject.quaternion,
+            activeObject.scale
+          );
+
+          scene.add(activeObject);
+          showMsg("Objeto colocado!");
+        } else {
+          activeObject.rotation.y += Math.PI / 4;
+          showMsg("Girando objeto...");
         }
       }
 
@@ -193,18 +197,10 @@
       function render(t, frame) {
         const dt = clock.getDelta();
 
-        // animações
         if (activeObject) {
-          if (activeObject.userData.type === "cube") {
-            // anima para o alvo
-            activeObject.rotation.y +=
-              (activeObject.userData.rot - activeObject.rotation.y) * dt * 5;
-          } else if (activeObject.userData.type === "planet") {
-            activeObject.rotation.y += dt * 0.6;
-          }
+          activeObject.rotation.y += dt * 0.4;
         }
 
-        // hit test
         const session = renderer.xr.getSession();
         if (session && frame) {
           if (!hitRequested) {
