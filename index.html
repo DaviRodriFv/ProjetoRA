@@ -43,21 +43,27 @@
     </div>
 
     <a-scene
-      vr-mode-ui="enabled: false"
-      embedded
-      arjs="sourceType: webcam; debugUIEnabled: false;"
-    >
-      <a-marker id="marker" preset="hiro">
-        <a-entity 
-          id="model" 
-          position="0 0 0"
-          animation-mixer="loop: repeat"
-          animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear;"
-        ></a-entity>
-      </a-marker>
+  vr-mode-ui="enabled: false"
+  embedded
+  arjs="sourceType: webcam; debugUIEnabled: false;"
+>
 
-      <a-entity camera></a-entity>
-    </a-scene>
+  <!-- Luzes que deixam os modelos claros e coloridos -->
+  <a-entity light="type: ambient; intensity: 1.5"></a-entity>
+  <a-entity light="type: directional; intensity: 1.2" position="1 1 1"></a-entity>
+  
+  <a-marker id="marker" preset="hiro">
+    <a-entity 
+      id="model" 
+      position="0 0 0"
+      animation-mixer="loop: repeat"
+      animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear;"
+    ></a-entity>
+  </a-marker>
+
+  <a-entity camera></a-entity>
+</a-scene>
+
 
     <script>
       let current = "ankylosaurus";
