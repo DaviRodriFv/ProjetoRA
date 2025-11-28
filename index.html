@@ -37,9 +37,9 @@
 
   <body>
     <div id="menu">
-      <button onclick="selectModel('skull')">Caveira</button>
-      <button onclick="selectModel('shark')">Tubarão</button>
-      <button onclick="selectModel('pig')">Porco</button>
+      <button onclick="selectModel('ankylosaurus')">Ankylosaurus</button>
+      <button onclick="selectModel('guanlong')">Guanlong</button>
+      <button onclick="selectModel('vicious')">Vicious Dino</button>
     </div>
 
     <a-scene
@@ -47,12 +47,12 @@
       embedded
       arjs="sourceType: webcam; debugUIEnabled: false;"
     >
-
       <a-marker id="marker" preset="hiro">
         <a-entity 
           id="model" 
           position="0 0 0"
           animation-mixer="loop: repeat"
+          animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear;"
         ></a-entity>
       </a-marker>
 
@@ -60,7 +60,7 @@
     </a-scene>
 
     <script>
-      let current = "skull";
+      let current = "ankylosaurus";
 
       function selectModel(name) {
         current = name;
@@ -73,35 +73,32 @@
         // limpa modelo anterior
         model.removeAttribute("gltf-model");
         model.setAttribute("animation-mixer", "loop: repeat");
-
-        // CAVEIRA
-        if (current === "skull") {
+        
+        // ANKYLOSAURUS
+        if (current === "ankylosaurus") {
           model.setAttribute(
             "gltf-model",
-            "https://raw.githubusercontent.com/DaviRodriFv/ProjetoRA/main/models/skull.glb"
+            "https://raw.githubusercontent.com/DaviRodriFv/ProjetoRA/main/models/dhds_ankylosaurus_animated.glb"
           );
-          model.setAttribute("scale", "0.1 0.1 0.1");
-          model.setAttribute("rotation", "0 0 0");
+          model.setAttribute("scale", "0.15 0.15 0.15");
         }
 
-        // TUBARÃO (preto, mas ANIMA)
-        if (current === "shark") {
+        // GUANLONG
+        if (current === "guanlong") {
           model.setAttribute(
             "gltf-model",
-            "https://files.catbox.moe/2l5358.glb"
+            "https://raw.githubusercontent.com/DaviRodriFv/ProjetoRA/main/models/dhds_guanlong_animated.glb"
           );
-          model.setAttribute("scale", "0.3 0.3 0.3");
-          model.setAttribute("rotation", "0 90 0");
+          model.setAttribute("scale", "0.15 0.15 0.15");
         }
 
-        // PORCO (colorido e animado)
-        if (current === "pig") {
+        // VICIOUS DINO
+        if (current === "vicious") {
           model.setAttribute(
             "gltf-model",
-            "https://files.catbox.moe/g3v3tr.glb"
+            "https://raw.githubusercontent.com/DaviRodriFv/ProjetoRA/main/models/dino_hunter_deadly_shores_vicious.glb"
           );
-          model.setAttribute("scale", "0.3 0.3 0.3");
-          model.setAttribute("rotation", "0 0 0");
+          model.setAttribute("scale", "0.15 0.15 0.15");
         }
       }
 
